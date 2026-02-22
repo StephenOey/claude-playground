@@ -8,7 +8,7 @@ export function TopBar() {
   return (
     <header className="flex items-center justify-between h-12 px-4 bg-zinc-900 border-b border-zinc-800 shrink-0">
       <div className="flex items-center gap-2">
-        <span className="text-white font-semibold text-sm tracking-tight">AnimCraft</span>
+        <span className="text-white font-semibold text-sm tracking-tight">Stinky Tofu</span>
         <span className="text-zinc-600 text-xs">GSAP Animation Builder</span>
       </div>
       <Button
