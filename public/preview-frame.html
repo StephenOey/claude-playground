@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Preview</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/CustomEase.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; background: #18181b; font-family: system-ui, sans-serif; }
+
+    #stage {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Default demo elements — these are reset and re-created on each update */
+    .demo-box {
+      width: 120px;
+      height: 120px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 13px;
+      font-weight: 500;
+      user-select: none;
+      box-shadow: 0 4px 24px rgba(99, 102, 241, 0.3);
+    }
+
+    .carousel-wrapper {
+      width: 320px;
+      overflow: hidden;
+      border-radius: 12px;
+      position: relative;
+    }
+    .carousel-track {
+      display: flex;
+    }
+    .carousel-item {
+      min-width: 320px;
+      height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: white;
+    }
+    .carousel-item:nth-child(1) { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+    .carousel-item:nth-child(2) { background: linear-gradient(135deg, #06b6d4, #3b82f6); }
+    .carousel-item:nth-child(3) { background: linear-gradient(135deg, #10b981, #059669); }
+
+    .scroll-section {
+      width: 280px;
+      padding: 24px;
+      background: #27272a;
+      border-radius: 12px;
+      color: white;
+    }
+    .scroll-section h2 { font-size: 18px; margin-bottom: 8px; }
+    .scroll-section p  { font-size: 13px; color: #a1a1aa; }
+
+    #error-banner {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #7f1d1d;
+      color: #fca5a5;
+      font-size: 11px;
+      font-family: monospace;
+      padding: 6px 12px;
+      display: none;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 80px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="error-banner"></div>
+
+  <script>
+    gsap.registerPlugin(ScrollTrigger, CustomEase);
+
+    const stage = document.getElementById('stage');
+    const errorBanner = document.getElementById('error-banner');
+
+    function showError(msg) {
+      errorBanner.style.display = 'block';
+      errorBanner.textContent = msg;
+    }
+    function clearError() {
+      errorBanner.style.display = 'none';
+      errorBanner.textContent = '';
+    }
+
+    function resetStage(type) {
+      // Kill all GSAP tweens and ScrollTriggers
+      gsap.killTweensOf('*');
+      ScrollTrigger.getAll().forEach(t => t.kill());
+      clearError();
+
+      // Always reset overrides first
+      document.documentElement.style.cssText = '';
+      document.body.style.cssText = '';
+      stage.style.cssText = '';
+      window.scrollTo(0, 0);
+
+      if (type === 'carousel') {
+        stage.innerHTML = `
+          <div class="carousel-wrapper carousel">
+            <div class="carousel-track">
+              <div class="carousel-item">1</div>
+              <div class="carousel-item">2</div>
+              <div class="carousel-item">3</div>
+            </div>
+          </div>`;
+      } else if (type === 'scroll') {
+        document.documentElement.style.height = 'auto';
+        document.body.style.height = 'auto';
+        stage.style.cssText = 'display:block; height:auto; padding: 0 24px';
+        stage.innerHTML = `
+          <div style="height:80px;display:flex;align-items:center;justify-content:center;
+                      color:#52525b;font-size:12px;user-select:none">↓ Scroll down to trigger</div>
+          <div style="display:flex;justify-content:center">
+            <div class="scroll-section my-section">
+              <h2>Scroll Animation</h2>
+              <p>This element will animate when it enters the viewport.</p>
+            </div>
+          </div>
+          <div style="height:300px"></div>`;
+      } else {
+        stage.innerHTML = `<div class="demo-box my-element">Hover me</div>`;
+      }
+    }
+
+    // Detect animation type from code comment / keywords
+    function detectType(code) {
+      if (code.includes('carousel') || code.includes('carousel-item')) return 'carousel';
+      if (code.includes('ScrollTrigger') || code.includes('scrollTrigger')) return 'scroll';
+      return 'hover';
+    }
+
+    window.addEventListener('message', (event) => {
+      const { type, code } = event.data || {};
+
+      // Carousel navigation
+      if ((type === 'CAROUSEL_NEXT' || type === 'CAROUSEL_PREV') && window.__preview) {
+        const p = window.__preview;
+        p.idx = ((p.idx + (type === 'CAROUSEL_NEXT' ? 1 : -1)) + p.count) % p.count;
+        gsap.to(p.track, { x: -p.idx * p.itemW, duration: 0.4, ease: 'power2.inOut' });
+        return;
+      }
+
+      if (type !== 'GSAP_UPDATE') return;
+
+      if (!code) {
+        resetStage('hover');
+        return;
+      }
+
+      const animType = detectType(code);
+      resetStage(animType);
+
+      // Pre-process cubic-bezier ease strings for GSAP compatibility
+      let processedCode = code;
+      const cbPattern = /'cubic-bezier\(([^)]+)\)'/g;
+      let m;
+      while ((m = cbPattern.exec(code)) !== null) {
+        const [x1, y1, x2, y2] = m[1].split(',').map(s => s.trim());
+        const name = '__cb_' + [x1, y1, x2, y2].join('_').replace(/[^0-9a-z]/gi, 'p');
+        CustomEase.create(name, `M0,0 C${x1},${y1} ${x2},${y2} 1,1`);
+        processedCode = processedCode.split(m[0]).join(`'${name}'`);
+      }
+
+      try {
+        // eslint-disable-next-line no-new-func
+        new Function('gsap', 'ScrollTrigger', processedCode)(gsap, ScrollTrigger);
+      } catch (err) {
+        showError('Preview error: ' + err.message);
+      }
+
+      if (animType === 'carousel') {
+        const track = document.querySelector('.carousel-track');
+        const wrapper = document.querySelector('.carousel-wrapper');
+        if (track && wrapper) {
+          window.__preview = { track, count: track.children.length,
+                               itemW: wrapper.offsetWidth, idx: 0 };
+        }
+      }
+    });
+  </script>
+</body>
+</html>
